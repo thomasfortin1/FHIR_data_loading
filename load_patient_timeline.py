@@ -1,5 +1,6 @@
 from fhirclient import client
-import
+import fhirclient.models.procedure as pr
+import fhirclient.models.encounter as en
 
 
 settings = {
@@ -8,16 +9,57 @@ settings = {
 }
 smart = client.FHIRClient(settings=settings)
 
-import fhirclient.models.procedure as p
-search = p.Procedure.where(struct={'status': 'completed'})
-procedures = search.perform_resources(smart.server)
-
-
 
 def load_timeline(id):
-    procedues = load_procedures(id)
+    procedures = load_procedures(id)
+    encounters = load_encounters(id)
+    resources = procedures + encounters
+    times = get_times(resources)
+    timeline = [(t, p) for t, p in zip(times, resources) if t is not None]
+    return timeline
+
+
+def get_times(resources):
+    times = []
+    for res in resources:
+        if isinstance(res, pr.Procedure):
+            if res.performedPeriod.start is not None:
+                times.append(res.performedPeriod.start.date)
+            elif res.performedPeriod.end is not None:
+                times.append(res.performedPeriod.end.date)
+            else:
+                times.append(None)
+        elif isinstance(res, en.Encounter):
+            if res.period.start is not None:
+                times.append(res.period.start.date)
+            elif res.period.end is not None:
+                times.append(res.period.end.date)
+            else:
+                times.append(None)
+        else:
+            times.append(None)
+
+    return times
 
 
 def load_procedures(id):
-    search = p.Procedure.where(struct=None)
+    search = pr.Procedure.where(struct=None)
     procedures = search.perform_resources(smart.server)
+    filtered_procedures = [p for p in procedures if p.subject.reference == id]
+    return filtered_procedures
+
+
+def load_encounters(id):
+    # TODO: when we get data from SMILE revisit this struct.
+    # I have to include it now because the example data I'm using is missing some statuses
+    # but the smart-on-fhir library doesn't allow encounter statuses which are None
+    search = en.Encounter.where(struct={'status': 'finished'})
+    encounters = search.perform_resources(smart.server)
+    filtered_encounters = [e for e in encounters if e.subject.reference == id]
+    return filtered_encounters
+
+
+if __name__ == "__main__":
+    timeline = load_timeline('Patient/158')
+    from utils import plot_timeline
+    plot_timeline(timeline)
