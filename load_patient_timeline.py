@@ -3,10 +3,16 @@ import fhirclient.models.procedure as pr
 import fhirclient.models.encounter as en
 
 
+# settings = {
+#     'app_id': 'Anything',
+#     'api_base': 'http://test.fhir.org/r4/'
+# }
+
 settings = {
     'app_id': 'Anything',
-    'api_base': 'http://test.fhir.org/r4/'
+    'api_base': 'http://hapi.fhir.org/baseR4/'
 }
+
 smart = client.FHIRClient(settings=settings)
 
 
